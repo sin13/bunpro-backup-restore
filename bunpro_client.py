@@ -154,34 +154,3 @@ class BunproClient:
                     },
                     headers={"authorization": f"Token token={token}"},
                 )
-
-
-if __name__ == "__main__":
-    """
-    Example usage:
-
-    - Create a .env file with:
-        BUNPRO_EMAIL=your_email
-        BUNPRO_PASSWORD=your_password
-
-    - Run: python bunpro_client.py
-
-    This will login, backup the deck located at '/decks/nn10ai/Bunpro-N5-Grammar'
-    and save to deck_data.json in the current working directory.
-    """
-
-    import os
-
-    load_dotenv()
-    email = os.getenv("BUNPRO_EMAIL")
-    password = os.getenv("BUNPRO_PASSWORD")
-
-    if not (email and password):
-        msg = "BUNPRO_EMAIL and BUNPRO_PASSWORD are required (set them in env or .env)."
-        raise ValueError(msg)
-
-    client = BunproClient(email=email, password=password)
-
-    # Example: backup a deck
-    demo_deck_path = "/decks/nn10ai/Bunpro-N5-Grammar"
-    client.backup(demo_deck_path)
