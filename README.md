@@ -15,13 +15,13 @@ This script logs into [bunpro.jp](https://bunpro.jp), extracts deck and SRS info
 ---
 
 ## Installation
-1. Clone the repository:
+### 1. Clone the repository:
 ```sh
 git clone https://github.com/sin13/bunpro-backup-restore.git
 cd bunpro-backup-restore
 ```
 
-2. Install dependencies:
+### 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
@@ -29,13 +29,30 @@ pip install -r requirements.txt
 
 
 ## Usage
-Create a .env file:
+### 1. Create a .env file:
 ```env
 BUNPRO_EMAIL=your@email.com
 BUNPRO_PASSWORD=your_password
 ```
 
-Run the script:
+### 2. Run the script:
+
+
+Backup:
+```bash
+python runner.py backup {DECK-URL}
+```
+> Please note that the provided url for backup should start with `/decks/` like the provided example:
+```bash
+python runner.py backup /decks/nn10ai/Bunpro-N5-Grammar
+```
+
+Restore:
+```bash
+python runner.py restore
+```
+
+Help:
 ```bash
 python runner.py --help
 ```
