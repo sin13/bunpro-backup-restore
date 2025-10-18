@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from dataclasses import dataclass
@@ -6,7 +8,6 @@ from urllib.parse import parse_qs, urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from tqdm import tqdm
 
 
@@ -20,7 +21,8 @@ class BunproClient:
     def __init__(self, email: str, password: str) -> None:
         self.session = requests.Session()
         self.credentials = Credentials(email=email, password=password)
-        self.data_file = Path("deck_data.json")
+        self.deck_backup_file_path = Path("deck_data.json")
+        self.kanji_backup_file_path = Path("kanji_data.json")
         self.logged_in = False
         self.base_url = "https://bunpro.jp"
         self.logger = logging.getLogger(__name__)
@@ -80,12 +82,21 @@ class BunproClient:
             self.logged_in = True
             return True, ""
 
-    def backup(self, deck_url: str) -> None:
+    def save_data_to_disk(self, data: dict | list, path: Path) -> None:
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def load_data_from_disk(self, path: Path) -> dict | list:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def backup_grammar(self, deck_url: str) -> None:
         self.ensure_login()
 
         stats_url = self.base_url + deck_url
-
         stats_response = self.session.get(stats_url)
+        stats_response.raise_for_status()
+
         soup = BeautifulSoup(stats_response.text, "html.parser")
         sections = soup.find_all("div", class_="deck-info-card")
 
@@ -121,17 +132,32 @@ class BunproClient:
                 },
             )
 
-        # Save to disk
-        with self.data_file.open("w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        self.save_data_to_disk(data, self.deck_backup_file_path)
 
-    def restore(self) -> None:
+    def backup_kanji(self) -> None:
         self.ensure_login()
 
+        kanji_url = self.base_url + "/api/frontend/user/add_known_kanji"
         token = self.session.cookies.get("frontend_api_token")
 
-        with self.data_file.open("r", encoding="utf-8") as f:
-            data = json.load(f)
+        response = self.session.post(
+            kanji_url,
+            json={"kanjis": []},
+            headers={"authorization": f"Token token={token}"},
+        )
+        response.raise_for_status()
+
+        self.save_data_to_disk(response.json(), self.kanji_backup_file_path)
+
+    def backup(self, deck_url: str) -> None:
+        self.backup_grammar(deck_url)
+        self.backup_kanji()
+
+    def restore_grammar(self) -> None:
+        self.ensure_login()
+        token = self.session.cookies.get("frontend_api_token")
+
+        data = self.load_data_from_disk(self.deck_backup_file_path)
 
         for point in tqdm(data):
             if point["srs"]:
@@ -154,3 +180,21 @@ class BunproClient:
                     },
                     headers={"authorization": f"Token token={token}"},
                 )
+
+    def restore_kanji(self) -> None:
+        self.ensure_login()
+        token = self.session.cookies.get("frontend_api_token")
+
+        kanji_url = self.base_url + "/api/frontend/user/add_known_kanji"
+        data = self.load_data_from_disk(self.kanji_backup_file_path)
+
+        response = self.session.post(
+            kanji_url,
+            json={"kanjis": list(data["known_kanji"].keys())},
+            headers={"authorization": f"Token token={token}"},
+        )
+        response.raise_for_status()
+
+    def restore(self) -> None:
+        self.restore_grammar()
+        self.restore_kanji()
