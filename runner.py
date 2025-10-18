@@ -21,7 +21,7 @@ if __name__ == "__main__":
           --email you@example.com --password yourpassword
 
       # restore from a custom file
-      python bunpro_client.py restore --data-file ./my_deck.json \
+      python bunpro_client.py restore \
           --email you@example.com --password yourpassword
 
       # alternatively, set credentials via .env or environment variables:
@@ -43,23 +43,11 @@ if __name__ == "__main__":
         help="Scrape the provided deck URL/path and save SRS data to a JSON file.",
     )
     p_backup.add_argument("deck_url", help="Deck path or full URL to backup.")
-    p_backup.add_argument(
-        "--data-file",
-        "-o",
-        default="deck_data.json",
-        help="Path to write the JSON backup (default: deck_data.json)",
-    )
 
     # restore subcommand
     p_restore = subparsers.add_parser(
         "restore",
         help="Restore SRS/streaks from a previously saved JSON file.",
-    )
-    p_restore.add_argument(
-        "--data-file",
-        "-i",
-        default="deck_data.json",
-        help="Path to read the JSON backup from (default: deck_data.json)",
     )
 
     # shared/global args
@@ -102,16 +90,14 @@ if __name__ == "__main__":
 
     # initialize client
     client = BunproClient(email=email, password=password)
-    data_file = Path(getattr(args, "data_file", "deck_data.json"))
-    client.data_file = data_file
 
     try:
         if args.command == "backup":
-            logger.info("Starting backup for %s -> %s", args.deck_url, data_file)
+            logger.info("Starting backup for %s", args.deck_url)
             client.backup(args.deck_url)
-            logger.info("Backup finished: %s", data_file)
+            logger.info("Backup finished")
         elif args.command == "restore":
-            logger.info("Starting restore from %s", data_file)
+            logger.info("Starting restore")
             client.restore()
             logger.info("Restore finished")
     except Exception:
