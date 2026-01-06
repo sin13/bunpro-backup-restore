@@ -21,18 +21,22 @@ class BunproClient:
     def __init__(self, email: str, password: str) -> None:
         self.session = requests.Session()
         self.credentials = Credentials(email=email, password=password)
-        self.deck_backup_file_path = Path("deck_data.json")
-        self.kanji_backup_file_path = Path("kanji_data.json")
         self.logged_in = False
         self.base_url = "https://bunpro.jp"
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
+        self.base_path = Path("data")
+        self.base_path.mkdir(parents=True, exist_ok=True)
+        self.kanji_backup_file_path = self.base_path / "kanji_data.json"
+
     def ensure_login(self) -> None:
         if self.logged_in is False:
+            self.logger.info("Logging in...")
             success, error_msg = self.login()
             if success is False:
                 raise ConnectionError(error_msg)
+            self.logger.info("Login Succeeded.")
 
     def login(self) -> tuple[bool, str]:
         login_page_url = "https://bunpro.jp/users/sign_in"
@@ -92,6 +96,7 @@ class BunproClient:
 
     def backup_grammar(self, deck_url: str) -> None:
         self.ensure_login()
+        self.logger.info("Starting backup for %s", deck_url)
 
         stats_url = self.base_url + deck_url
         stats_response = self.session.get(stats_url)
@@ -132,7 +137,10 @@ class BunproClient:
                 },
             )
 
-        self.save_data_to_disk(data, self.deck_backup_file_path)
+        deck_backup_file_path = (
+            self.base_path / f"deck_{deck_url.split('/')[-1].lower()}"
+        ).with_suffix(".json")
+        self.save_data_to_disk(data, deck_backup_file_path)
 
     def backup_kanji(self) -> None:
         self.ensure_login()
@@ -149,15 +157,18 @@ class BunproClient:
 
         self.save_data_to_disk(response.json(), self.kanji_backup_file_path)
 
-    def backup(self, deck_url: str) -> None:
-        self.backup_grammar(deck_url)
+    def backup(self, deck_urls: list[str]) -> None:
+        for deck_url in deck_urls:
+            self.backup_grammar(deck_url)
         self.backup_kanji()
 
-    def restore_grammar(self) -> None:
+    def restore_grammar(self, file_path: Path) -> None:
         self.ensure_login()
+        self.logger.info("Starting restore for %s", file_path.name)
+
         token = self.session.cookies.get("frontend_api_token")
 
-        data = self.load_data_from_disk(self.deck_backup_file_path)
+        data = self.load_data_from_disk(file_path)
 
         for point in tqdm(data):
             if point["srs"]:
@@ -196,5 +207,6 @@ class BunproClient:
         response.raise_for_status()
 
     def restore(self) -> None:
-        self.restore_grammar()
+        for path in self.base_path.glob("deck_*"):
+            self.restore_grammar(path)
         self.restore_kanji()

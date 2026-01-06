@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import sys
-from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -10,6 +9,12 @@ from bunpro_client import BunproClient
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+DEFAULT_DECKS = [
+    "/decks/nn10ai/Bunpro-N5-Grammar",
+    "/decks/m7omkx/Bunpro-N4-Grammar",
+]
+
 
 if __name__ == "__main__":
     """
@@ -42,7 +47,12 @@ if __name__ == "__main__":
         "backup",
         help="Scrape the provided deck URL/path and save SRS data to a JSON file.",
     )
-    p_backup.add_argument("deck_url", help="Deck path or full URL to backup.")
+    p_backup.add_argument(
+        "deck_urls",
+        nargs="*",
+        help="One or more deck paths or full URLs to backup.",
+        default=DEFAULT_DECKS,
+    )
 
     # restore subcommand
     p_restore = subparsers.add_parser(
@@ -93,8 +103,8 @@ if __name__ == "__main__":
 
     try:
         if args.command == "backup":
-            logger.info("Starting backup for %s", args.deck_url)
-            client.backup(args.deck_url)
+            logger.info("Starting backup")
+            client.backup(args.deck_urls)
             logger.info("Backup finished")
         elif args.command == "restore":
             logger.info("Starting restore")
